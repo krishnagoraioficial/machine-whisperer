@@ -10,8 +10,7 @@ import numpy as np
 import scipy.signal as signal
 import sounddevice as sd
 import pyqtgraph as pg
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QComboBox
-
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox, QPushButton
 # ==========================================
 # 1. CONFIG & SETUP
 # ==========================================
@@ -68,14 +67,25 @@ main_window.resize(1000, 900)
 layout = QVBoxLayout()
 main_window.setLayout(layout)
 
-# 4b. Add the Preset Dropdown Menu
-preset_dropdown = QComboBox()
-preset_dropdown.addItems([
-    "Default: Broad Factory Monitoring (80Hz - 3kHz)",
-    "Preset 1: Heavy Grinding/Rumble (50Hz - 500Hz)",
-    "Preset 2: High-Pitch Electrical Whine (1kHz - 4kHz)"
-])
-layout.addWidget(preset_dropdown)
+# 4b. Add the Manual Frequency Controls
+controls_layout = QHBoxLayout()
+
+controls_layout.addWidget(QLabel("Low Cut (Hz):"))
+lowcut_input = QSpinBox()
+lowcut_input.setRange(10, 7999)
+lowcut_input.setValue(int(LOWCUT_FREQ_HZ))
+controls_layout.addWidget(lowcut_input)
+
+controls_layout.addWidget(QLabel("High Cut (Hz):"))
+highcut_input = QSpinBox()
+highcut_input.setRange(20, 8000)
+highcut_input.setValue(int(HIGHCUT_FREQ_HZ))
+controls_layout.addWidget(highcut_input)
+
+apply_btn = QPushButton("Apply Custom Filter")
+controls_layout.addWidget(apply_btn)
+
+layout.addLayout(controls_layout)
 
 # 4c. Add the PyQtGraph Dashboard below the dropdown
 window = pg.GraphicsLayoutWidget()
@@ -104,19 +114,19 @@ main_window.show()
 
 # 4d. Dynamic Filter Logic
 def update_filter_preset():
-    """Recalculates the filter limits when a new preset is selected in the UI."""
+    """Recalculates the filter limits based on manual UI inputs."""
     global filter_b, filter_a
-    choice = preset_dropdown.currentIndex()
+    new_low = float(lowcut_input.value())
+    new_high = float(highcut_input.value())
     
-    if choice == 0:
-        filter_b, filter_a = create_digital_filter(80.0, 3000.0, AUDIO_SAMPLE_RATE, FILTER_STEEPNESS)
-    elif choice == 1:
-        filter_b, filter_a = create_digital_filter(50.0, 500.0, AUDIO_SAMPLE_RATE, FILTER_STEEPNESS)
-    elif choice == 2:
-        filter_b, filter_a = create_digital_filter(1000.0, 4000.0, AUDIO_SAMPLE_RATE, FILTER_STEEPNESS)
+    # Safety check: prevent mathematical errors if the user sets Low higher than High
+    if new_low >= new_high:
+        return 
+        
+    filter_b, filter_a = create_digital_filter(new_low, new_high, AUDIO_SAMPLE_RATE, FILTER_STEEPNESS)
 
-preset_dropdown.currentIndexChanged.connect(update_filter_preset)
-
+# Trigger the update only when the button is clicked
+apply_btn.clicked.connect(update_filter_preset)
 # ==========================================
 # 5. DSP & DASHBOARD UPDATE LOOP
 # ==========================================
@@ -146,7 +156,7 @@ def update_dashboard():
     spectrogram_data[-1, :] = fft_db
 
     image_item.setImage(spectrogram_data, autoLevels=False)
-    
+
     # Dynamic Color/Sensitivity: Spectrogram
     peak_fft = np.max(fft_db)
     if peak_fft > 40:
