@@ -127,7 +127,14 @@ def update_dashboard():
     # STEP A: Clean the audio (remove 60Hz hum and out-of-band noise)
     filtered_audio = signal.lfilter(filter_b, filter_a, audio_buffer)
     waveform_curve.setData(filtered_audio)
-    
+
+    # Dynamic Y-Axis: Waveform
+    peak_amp = np.max(np.abs(filtered_audio))
+    if peak_amp > 0.5:
+        waveform_plot.setYRange(-peak_amp * 1.1, peak_amp * 1.1)
+    else:
+        waveform_plot.setYRange(-0.5, 0.5)
+
     # STEP B: FFT & Spectrogram
     # Apply a Hanning window so the FFT doesn't leak/spike artificially at the edges
     windowed_audio = filtered_audio * np.hanning(len(filtered_audio))
@@ -137,8 +144,16 @@ def update_dashboard():
     # Shift array down and put new FFT data at the top
     spectrogram_data = np.roll(spectrogram_data, -1, axis=0)
     spectrogram_data[-1, :] = fft_db
+
     image_item.setImage(spectrogram_data, autoLevels=False)
     
+    # Dynamic Color/Sensitivity: Spectrogram
+    peak_fft = np.max(fft_db)
+    if peak_fft > 40:
+        image_item.setLevels((-30, peak_fft * 1.1))
+    else:
+        image_item.setLevels((-30, 40))
+        
     # STEP C: RMS Energy Calculation
     # Calculate the square root of the mean of squares for signal power
     current_rms = np.sqrt(np.mean(filtered_audio**2))
@@ -146,6 +161,14 @@ def update_dashboard():
     rms_history = np.roll(rms_history, -1)
     rms_history[-1] = current_rms
     rms_curve.setData(rms_history)
+
+    # Dynamic Y-Axis: RMS Energy
+    peak_rms = np.max(rms_history)
+    if peak_rms > 0.2:
+        rms_plot.setYRange(0, peak_rms * 1.1)
+    else:
+        rms_plot.setYRange(0, 0.2)
+
 # ==========================================
 # 6. MAIN EXECUTION LOOP
 # ==========================================
