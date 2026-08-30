@@ -10,6 +10,8 @@ import numpy as np
 import scipy.signal as signal
 import sounddevice as sd
 import pyqtgraph as pg
+from PyQt6.QtGui import QPixmap, QFont
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox, QPushButton
 # ==========================================
 # 1. CONFIG & SETUP
@@ -67,7 +69,41 @@ main_window.resize(1000, 900)
 layout = QVBoxLayout()
 main_window.setLayout(layout)
 
-# 4b. Add the Manual Frequency Controls
+# 4b. Add the Header (Texts and Logo)
+header_layout = QHBoxLayout()
+
+# Project Text Info
+info_layout = QVBoxLayout()
+title_label = QLabel("Distributed Acoustic Sensing for Predictive Machinery Maintenance")
+title_label.setFont(QFont("Arial", 16, QFont.Weight.Bold))
+
+author_label = QLabel("Author: Krishna Gorai (Roll No: 25f1100001)")
+author_label.setFont(QFont("Arial", 12))
+
+course_label = QLabel("IITM BS-ES Signal Processing Project")
+course_label.setFont(QFont("Arial", 12, QFont.Weight.Medium))
+
+info_layout.addWidget(title_label)
+info_layout.addWidget(author_label)
+info_layout.addWidget(course_label)
+
+# IITM Logo Image
+logo_label = QLabel()
+pixmap = QPixmap("iitm_logo.png") 
+
+# If the image exists, scale it cleanly to 80px tall. Otherwise, show a placeholder.
+if not pixmap.isNull():
+    logo_label.setPixmap(pixmap.scaledToHeight(80, Qt.TransformationMode.SmoothTransformation))
+else:
+    logo_label.setText("[Missing iitm_logo.png]")
+    
+header_layout.addLayout(info_layout)
+header_layout.addWidget(logo_label, alignment=Qt.AlignmentFlag.AlignRight)
+
+# Add the completed header to the very top of the app
+layout.addLayout(header_layout)
+
+# 4c. Add the Manual Frequency Controls
 controls_layout = QHBoxLayout()
 
 controls_layout.addWidget(QLabel("Low Cut (Hz):"))
@@ -87,7 +123,7 @@ controls_layout.addWidget(apply_btn)
 
 layout.addLayout(controls_layout)
 
-# 4c. Add the PyQtGraph Dashboard below the dropdown
+# 4d. Add the PyQtGraph Dashboard below the dropdown
 window = pg.GraphicsLayoutWidget()
 layout.addWidget(window)
 
