@@ -8,7 +8,8 @@
 import sys
 import numpy as np
 import scipy.signal as signal
-import sounddevice as sd
+import socket
+import threading
 import pyqtgraph as pg
 from PyQt6.QtWidgets import QApplication
 
@@ -37,11 +38,56 @@ def create_digital_filter(low_hz, high_hz, rate, order):
 # Set the default startup filter
 filter_b, filter_a = create_digital_filter(80.0, 3000.0, AUDIO_SAMPLE_RATE, FILTER_STEEPNESS)
 
-def capture_audio_callback(indata, frames, time, status):
-    """Background thread to grab mic data into the buffer."""
-    global audio_buffer 
-    if status: print(f"Mic Warning: {status}")
-    audio_buffer = indata[:, 0]
+def tcp_server_thread():
+    """Background thread to receive audio data from ESP32 via TCP."""
+    global audio_buffer
+    HOST = '0.0.0.0' # Listen on all interfaces
+    PORT = 5000
+    
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_socket.bind((HOST, PORT))
+    server_socket.listen(1)
+    print(f"TCP Server listening on {HOST}:{PORT}. Waiting for ESP32...")
+    
+    while True:
+        conn, addr = server_socket.accept()
+        print(f"ESP32 Connected from {addr}")
+        
+        try:
+            # We expect chunks of 1024 16-bit ints (2048 bytes)
+            expected_bytes = CHUNK_SIZE * 2 
+            accumulated_data = bytearray()
+            
+            while True:
+                data = conn.recv(expected_bytes)
+                if not data:
+                    break # Connection closed
+                
+                accumulated_data.extend(data)
+                
+                # Process complete chunks
+                while len(accumulated_data) >= expected_bytes:
+                    chunk = accumulated_data[:expected_bytes]
+                    del accumulated_data[:expected_bytes]
+                    
+                    # Read as int16
+                    raw_samples = np.frombuffer(chunk, dtype=np.int16)
+                    
+                    # Convert to float and scale down to -1.0 to 1.0 range
+                    float_samples = raw_samples.astype(np.float32) / 32768.0
+                    
+                    # DEBUG: Print some stats every few chunks to verify mic data
+                    if np.random.random() < 0.05: # Print ~5% of the time to avoid spam
+                        print(f"DEBUG: Chunk Received. Raw max: {np.max(raw_samples)}, min: {np.min(raw_samples)}")
+                        print(f"DEBUG: Float max: {np.max(float_samples):.6f}, min: {np.min(float_samples):.6f}")
+                    
+                    audio_buffer = float_samples
+        except Exception as e:
+            print(f"TCP stream error: {e}")
+        finally:
+            conn.close()
+            print("ESP32 Disconnected. Waiting for new connection...")
 
 # ==========================================
 # 2. APPLICATION BOOTSTRAP
@@ -123,11 +169,13 @@ def update_dashboard():
     ui.update_kpis(current_rms, dominant_frequency_hz, is_anomaly)
 
 if __name__ == '__main__':
+    # Start the TCP server in a background thread
+    tcp_thread = threading.Thread(target=tcp_server_thread, daemon=True)
+    tcp_thread.start()
+    
     ui.show()
-    stream = sd.InputStream(samplerate=AUDIO_SAMPLE_RATE, channels=1, blocksize=CHUNK_SIZE, callback=capture_audio_callback)
-    with stream:
-        print("Microphone is active. Launching Machine-whisperer...")
-        refresh_timer = pg.QtCore.QTimer()
-        refresh_timer.timeout.connect(update_dashboard)
-        refresh_timer.start(50) 
-        sys.exit(app.exec())
+    print("Dashboard active. Launching Machine-whisperer...")
+    refresh_timer = pg.QtCore.QTimer()
+    refresh_timer.timeout.connect(update_dashboard)
+    refresh_timer.start(50) 
+    sys.exit(app.exec())
