@@ -1,52 +1,42 @@
-# Distributed Acoustic Sensing for Predictive Machinery Maintenance
-### Project Codename: MachineWhisperer
+# Machine Whisperer
 **Author:** Krishna Gorai (Roll No: 25f1100001)  
 **Course:** IITM BS-ES Signal Processing Project  
 
 ---
 
-## 📌 Project Overview
-MachineWhisperer is a real-time acoustic sensing and predictive maintenance platform. It actively monitors machinery noise, processes the audio using Digital Signal Processing (DSP) techniques, and visualizes the health of the equipment to detect potential mechanical failures before they become critical. 
+## Overview
+MachineWhisperer is a real-time acoustic sensing and predictive maintenance project. It listens to machinery noise, processes the audio using DSP, and visualizes the health of the equipment to detect potential mechanical failures.
 
-Currently, the software utilizes PC/laptop microphones for real-time data capture and uses a baseline RMS threshold for anomaly detection. 
-
----
-
-## 🛠️ Technology Stack
-
-### Current Implementation (Phase 1 — Mid-Term)
-* **Programming Language:** Python 3
-* **Digital Signal Processing (DSP):** `NumPy` (FFT, buffering, RMS calculations), `SciPy` (Butterworth bandpass filtering, Welch's PSD estimation).
-* **Audio Capture:** `sounddevice` (real-time low-latency microphone streaming).
-* **Frontend UI & Visualization:** `PyQt6` (layout, QSS styling, event handling) and `PyQtGraph` (hardware-accelerated, lag-free dynamic graph rendering).
-
-### Future Implementation (Phase 2)
-* **Hardware Edge Nodes:** Transitioning to ESP32 microcontrollers paired with I2S Digital MEMS Microphones (e.g., INMP441) for remote, dedicated data acquisition.
-* **Networking:** TCP/IP Wi-Fi sockets to wirelessly stream real-time, uncompressed audio payloads to the central processing hub.
-* **Machine Learning:** Integrating anomaly classification models (e.g., `scikit-learn` or `TensorFlow Lite`) to classify specific mechanical faults (e.g., bearing wear vs. misalignment) using acoustic features, replacing the basic RMS threshold method.
+In the current stage, we use an ESP32 microcontroller with an INMP441 I2S microphone to capture audio remotely. The audio data is streamed over Wi-Fi (TCP) to a laptop running a Python dashboard for real-time DSP analysis.
 
 ---
 
-## 🚀 Mid-Term Features
-* **Acoustic Calibration:** Includes a standalone scanner that samples room acoustics for 20 seconds using Welch's method to suggest optimal Butterworth bandpass limits (with a hard floor of 80Hz to filter out 50Hz electrical mains hum).
-* **Live DSP Pipeline:** Real-time audio filtering, FFT computation (utilizing a Hanning window to prevent edge leakage), and RMS power calculation.
-* **Dynamic Visualizations:** A dark-themed GUI built with PyQtGraph featuring a continuous spectrogram for frequency activity, a live filtered acoustic waveform, and an RMS energy trend line.
-* **KPI Tracking:** Tracks Machine Health, RMS Energy, Dominant Frequency, and System Status.
+## Tech Stack
+
+* **Hardware:** ESP32, INMP441 I2S MEMS Microphone.
+* **Firmware:** C++ (Arduino Core for ESP32) with Wi-Fi TCP sockets.
+* **DSP & Backend:** Python 3, `NumPy`, `SciPy` (Butterworth bandpass filtering, FFT).
+* **UI & Dashboard:** `PyQt6` and `PyQtGraph` for real-time, lag-free data visualization.
 
 ---
 
-## 🖥️ Dashboard Architecture (What We Are Showing)
+## Features
 
-The SCADA-style dashboard provides a comprehensive real-time view of machinery health, structured into the following components:
+* **Wireless Audio Streaming:** ESP32 captures audio and sends raw 16-bit PCM data over a Wi-Fi hotspot to the Python server.
+* **Live DSP Pipeline:** Real-time audio filtering, FFT computation, and RMS power calculation.
+* **Dashboard Visualizations:** A dark-themed GUI featuring a continuous spectrogram, a live filtered waveform, and an RMS energy trend line.
+* **Real-time Anomaly Detection:** Triggers an alert if the RMS energy exceeds a baseline threshold (currently set manually).
 
-1. **Telemetry Header:** Includes a dropdown to select different monitored machinery (ready for multi-node deployment) alongside a live data connection indicator.
-2. **KPI Health Cards:** * **Machine Health & System Status:** High-level operational indicators indicating normal conditions or critical alerts.
-   * **RMS Energy:** Real-time root-mean-square vibration energy calculations.
-   * **Dominant Frequency:** Real-time peak frequency identification, pointing to the loudest mechanical component in the frequency spectrum.
-3. **Anomaly Detection Panel & Controls:** Displays current alert status (triggering on RMS threshold breaches) and provides user input fields to adjust Low-Cut and High-Cut DSP filters on the fly.
-4. **Continuous Spectrogram (Top Graph):** A rolling heatmap showing the intensity of all frequency bands over time, helping visually identify newly emerging mechanical noise.
-5. **Live Acoustic Signal (Middle Graph):** A time-domain waveform showing the physical shape and amplitude of the currently filtered audio signal.
-6. **Machine Health Trend (Bottom Graph):** A scrolling timeline explicitly tracking RMS energy, making it easy to spot sudden physical stress or degradation spikes over time.
+---
+
+## Project Structure
+
+* `esp32_firmware/esp32_firmware.ino` - The code running on the ESP32 to capture mic data and send it over Wi-Fi.
+* `main_dsp.py` - The main Python script that runs the TCP server, processes incoming audio, and runs the dashboard.
+* `ui_dashboard.py` - Contains the PyQt6 layout and styling for the dashboard.
+* `environment_scanner.py` - A utility script for initial acoustic calibration.
+
+---
 
 ### Dashboard Preview
 ![Anomaly Demo GIF](./assets/video-demo.gif)
