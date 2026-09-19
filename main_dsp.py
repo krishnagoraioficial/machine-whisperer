@@ -18,6 +18,12 @@ audio_buffer = np.zeros(CHUNK_SIZE)
 spectrogram_data = np.zeros((WATERFALL_FRAMES, CHUNK_SIZE // 2))
 rms_history = np.zeros(WATERFALL_FRAMES)
 
+# Baseline calibration globals
+is_calibrating = False
+calibration_frames = []
+baseline_spectrum = None
+CALIBRATION_MAX_FRAMES = 100 # ~5.0 seconds at 50ms refresh
+
 # function to create the bandpass filter
 def create_digital_filter(low_hz, high_hz, rate, order):
     nyquist_limit = 0.5 * rate
@@ -87,6 +93,14 @@ def update_filter_preset():
 
 ui.apply_btn.clicked.connect(update_filter_preset)
 
+def start_calibration():
+    global is_calibrating, calibration_frames
+    is_calibrating = True
+    calibration_frames = []
+    print("Starting baseline calibration...")
+
+ui.calibrate_btn.clicked.connect(start_calibration)
+
 # main loop to process audio and update UI
 def update_dashboard():
     global spectrogram_data, rms_history
@@ -139,10 +153,58 @@ def update_dashboard():
     dom_freq_idx = np.argmax(fft_magnitude)
     dominant_frequency_hz = dom_freq_idx * (AUDIO_SAMPLE_RATE / CHUNK_SIZE)
     
-    # basic anomaly detection using hardcoded threshold
-    is_anomaly = current_rms > 0.1
+    # --- ANOMALY DETECTION LOGIC ---
+    global is_calibrating, calibration_frames, baseline_spectrum
     
-    ui.update_kpis(current_rms, dominant_frequency_hz, is_anomaly)
+    is_anomaly = False
+    health_score = 100
+    status_text = "██████████░ NORMAL"
+    sys_status = "● NORMAL"
+    sys_desc = "No anomalies detected"
+    
+    if is_calibrating:
+        calibration_frames.append(fft_magnitude)
+        health_score = 99
+        status_text = f"CALIBRATING... ({len(calibration_frames)}/{CALIBRATION_MAX_FRAMES})"
+        sys_status = "● CALIBRATING"
+        sys_desc = "Building spectral baseline profile"
+        if len(calibration_frames) >= CALIBRATION_MAX_FRAMES:
+            baseline_spectrum = np.mean(calibration_frames, axis=0)
+            baseline_spectrum = np.maximum(baseline_spectrum, 1e-6) # prevent div/0
+            is_calibrating = False
+            print("Calibration complete.")
+    elif baseline_spectrum is not None:
+        energy_ratio = fft_magnitude / baseline_spectrum
+        
+        # Analyze specific bands based on filters, e.g. 80Hz to 3000Hz
+        start_bin = int(80 / (AUDIO_SAMPLE_RATE / CHUNK_SIZE))
+        end_bin = int(3000 / (AUDIO_SAMPLE_RATE / CHUNK_SIZE))
+        
+        if start_bin < len(energy_ratio) and end_bin < len(energy_ratio):
+            band_ratio = energy_ratio[start_bin:end_bin]
+            peak_ratio = np.max(band_ratio)
+            mean_ratio = np.mean(band_ratio)
+            
+            # Anomaly condition: mean energy 3x higher OR a specific peak is 8x higher than baseline
+            if mean_ratio > 3.0 or peak_ratio > 8.0:
+                is_anomaly = True
+                
+            if is_anomaly:
+                health_score = max(0, 100 - int(peak_ratio * 5))
+                status_text = f"⚠️ {peak_ratio:.1f}x BASELINE ENERGY SPIKE"
+                sys_status = "🔴 CRITICAL"
+                sys_desc = "Abnormal spectral energy detected"
+            else:
+                health_score = max(50, 100 - int((mean_ratio - 1.0) * 10)) if mean_ratio > 1 else 100
+                status_text = "██████████░ NORMAL (Monitored)"
+                sys_desc = f"Tracking normal. Peak ratio: {peak_ratio:.1f}x"
+    else:
+        status_text = "Awaiting Calibration"
+        sys_status = "⚪ STANDBY"
+        sys_desc = "Click 'Calibrate Baseline' to start"
+        health_score = "--"
+    
+    ui.update_kpis(current_rms, dominant_frequency_hz, is_anomaly, health_score, status_text, sys_status, sys_desc)
 
 if __name__ == '__main__':
     tcp_thread = threading.Thread(target=tcp_server_thread, daemon=True)

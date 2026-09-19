@@ -161,6 +161,11 @@ class DashboardUI:
 
         self.apply_btn = QPushButton("APPLY FILTER")
         filter_layout.addWidget(self.apply_btn)
+
+        self.calibrate_btn = QPushButton("CALIBRATE BASELINE")
+        self.calibrate_btn.setStyleSheet("background-color: #F5B942; color: #0B1117;")
+        filter_layout.addWidget(self.calibrate_btn)
+
         middle_ctrl_layout.addWidget(filter_card, stretch=3)
         
         self.layout.addLayout(middle_ctrl_layout)
@@ -204,36 +209,36 @@ class DashboardUI:
     def show(self):
         self.main_window.show()
 
-    def update_kpis(self, rms_val, dom_freq, is_anomaly):
+    def update_kpis(self, rms_val, dom_freq, is_anomaly, health_score, status_text, sys_status, sys_desc):
         """Updates the text on the top KPI cards based on backend math."""
         self.lbl_rms_val.setText(f"{rms_val:.4f} g")
         self.lbl_freq_val.setText(f"{dom_freq:.0f} Hz")
         
+        self.lbl_health_val.setText(f"{health_score} / 100" if health_score != "--" else "-- / 100")
+        
         if is_anomaly:
-            self.lbl_health_val.setText("Coming Soon...")
             self.lbl_health_val.setStyleSheet("color: #FF4D5A; font-size: 28px; font-weight: bold;")
-            self.lbl_health_stat.setText("████░░░░░░ CRITICAL")
+            self.lbl_health_stat.setText(status_text)
             self.lbl_health_stat.setStyleSheet("color: #FF4D5A; font-size: 11px;")
             
-            self.lbl_sys_val.setText("🔴 CRITICAL")
+            self.lbl_sys_val.setText(sys_status)
             self.lbl_sys_val.setStyleSheet("color: #FF4D5A; font-size: 28px; font-weight: bold;")
-            self.lbl_sys_stat.setText("Coming Soon...")
+            self.lbl_sys_stat.setText(sys_desc)
             
             self.anomaly_card.setStyleSheet("QFrame.card { border: 2px solid #FF4D5A; background-color: #1a0a0c; }")
-            self.anomaly_status.setText("Coming Soon...")
+            self.anomaly_status.setText(status_text)
             self.anomaly_status.setStyleSheet("color: #FF4D5A; font-size: 14px; font-weight: bold;")
             self.rms_curve.setPen(pg.mkPen('#FF4D5A', width=2))
         else:
-            self.lbl_health_val.setText("Coming Soon...")
             self.lbl_health_val.setStyleSheet("color: #35D07F; font-size: 28px; font-weight: bold;")
-            self.lbl_health_stat.setText("██████████░ NORMAL")
+            self.lbl_health_stat.setText(status_text)
             self.lbl_health_stat.setStyleSheet("color: #35D07F; font-size: 11px;")
             
-            self.lbl_sys_val.setText("● NORMAL")
+            self.lbl_sys_val.setText(sys_status)
             self.lbl_sys_val.setStyleSheet("color: #35D07F; font-size: 28px; font-weight: bold;")
-            self.lbl_sys_stat.setText("Coming Soon...")
+            self.lbl_sys_stat.setText(sys_desc)
             
             self.anomaly_card.setStyleSheet("QFrame.card { background-color: #111A22; border: 1px solid #24313D; }")
-            self.anomaly_status.setText("Coming Soon...")
+            self.anomaly_status.setText(status_text)
             self.anomaly_status.setStyleSheet("color: #35D07F; font-size: 14px; font-weight: bold;")
             self.rms_curve.setPen(pg.mkPen('#35D07F', width=2))
