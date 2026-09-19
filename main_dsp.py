@@ -12,7 +12,7 @@ from ui_dashboard import DashboardUI
 AUDIO_SAMPLE_RATE = 16000
 CHUNK_SIZE = 1024
 WATERFALL_FRAMES = 100
-FILTER_STEEPNESS = 4
+FILTER_STEEPNESS = 8
 
 audio_buffer = np.zeros(CHUNK_SIZE) 
 spectrogram_data = np.zeros((WATERFALL_FRAMES, CHUNK_SIZE // 2))
@@ -91,16 +91,23 @@ ui.apply_btn.clicked.connect(update_filter_preset)
 def update_dashboard():
     global spectrogram_data, rms_history
     
+    # copy buffer to avoid race conditions and remove DC offset
+    local_audio = audio_buffer - np.mean(audio_buffer)
+
+    # update raw audio
+    ui.raw_waveform_curve.setData(local_audio)
+    raw_peak = np.max(np.abs(local_audio))
+    raw_y = max(raw_peak * 1.2, 0.05) # Increased minimum range to hide noise
+    ui.raw_waveform_plot.setYRange(-raw_y, raw_y)
+
     # filter the audio
-    filtered_audio = signal.lfilter(filter_b, filter_a, audio_buffer)
+    filtered_audio = signal.lfilter(filter_b, filter_a, local_audio)
     ui.waveform_curve.setData(filtered_audio)
 
     # auto-scale waveform
     peak_amp = np.max(np.abs(filtered_audio))
-    if peak_amp > 0.5:
-        ui.waveform_plot.setYRange(-peak_amp * 1.1, peak_amp * 1.1)
-    else:
-        ui.waveform_plot.setYRange(-0.5, 0.5)
+    filtered_y = max(peak_amp * 1.2, 0.05) # Increased minimum range to hide noise
+    ui.waveform_plot.setYRange(-filtered_y, filtered_y)
 
     # calculate fft for spectrogram
     windowed_audio = filtered_audio * np.hanning(len(filtered_audio))
@@ -112,10 +119,9 @@ def update_dashboard():
     ui.image_item.setImage(spectrogram_data, autoLevels=False)
 
     peak_fft = np.max(fft_db)
-    if peak_fft > 40:
-        ui.image_item.setLevels((-30, peak_fft * 1.1))
-    else:
-        ui.image_item.setLevels((-30, 40))
+    # Set a constant 60dB dynamic range, but don't let the peak drop too low during silence
+    upper_level = max(peak_fft, 10.0)
+    ui.image_item.setLevels((upper_level - 60, upper_level))
         
     # calculate rms power
     current_rms = np.sqrt(np.mean(filtered_audio**2))

@@ -183,14 +183,20 @@ class DashboardUI:
         self.image_item.setColorMap(pg.colormap.get('inferno'))
         self.image_item.setLevels((-30, 40))
 
-        # Waveform
-        self.waveform_plot = self.window.addPlot(title="LIVE ACOUSTIC SIGNAL (Filtered)", row=1, col=0)
+        # Raw Waveform
+        self.raw_waveform_plot = self.window.addPlot(title="LIVE ACOUSTIC SIGNAL (Raw)", row=1, col=0)
+        self.raw_waveform_plot.setYRange(-0.5, 0.5)
+        self.raw_waveform_plot.showGrid(x=True, y=True, alpha=0.2)
+        self.raw_waveform_curve = self.raw_waveform_plot.plot(pen=pg.mkPen('#FF5733', width=1.5)) 
+
+        # Filtered Waveform
+        self.waveform_plot = self.window.addPlot(title="LIVE ACOUSTIC SIGNAL (Filtered)", row=2, col=0)
         self.waveform_plot.setYRange(-0.5, 0.5)
         self.waveform_plot.showGrid(x=True, y=True, alpha=0.2)
         self.waveform_curve = self.waveform_plot.plot(pen=pg.mkPen('#20D6E8', width=1.5)) 
 
         # RMS Trend
-        self.rms_plot = self.window.addPlot(title="MACHINE HEALTH TREND (RMS Energy)", row=2, col=0)
+        self.rms_plot = self.window.addPlot(title="MACHINE HEALTH TREND (RMS Energy)", row=3, col=0)
         self.rms_plot.setYRange(0, 0.2)
         self.rms_plot.showGrid(x=True, y=True, alpha=0.2)
         self.rms_curve = self.rms_plot.plot(pen=pg.mkPen('#F5B942', width=2), fillLevel=0, brush=(245, 185, 66, 50)) 
