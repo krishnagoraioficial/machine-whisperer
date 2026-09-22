@@ -16,6 +16,7 @@ In the current stage, we use an ESP32 microcontroller with an INMP441 I2S microp
 * **Hardware:** ESP32, INMP441 I2S MEMS Microphone.
 * **Firmware:** C++ (Arduino Core for ESP32) with Wi-Fi TCP sockets.
 * **DSP & Backend:** Python 3, `NumPy`, `SciPy` (Butterworth bandpass filtering, FFT).
+* **Machine Learning:** `scikit-learn` (Isolation Forest) and `joblib` for anomaly detection.
 * **UI & Dashboard:** `PyQt6` and `PyQtGraph` for real-time, lag-free data visualization.
 
 ---
@@ -25,7 +26,7 @@ In the current stage, we use an ESP32 microcontroller with an INMP441 I2S microp
 * **Wireless Audio Streaming:** ESP32 captures audio and sends raw 16-bit PCM data over a Wi-Fi hotspot to the Python server.
 * **Live DSP Pipeline:** Real-time audio filtering, FFT computation, and RMS power calculation.
 * **Dashboard Visualizations:** A dark-themed GUI featuring a continuous spectrogram, a live filtered waveform, and an RMS energy trend line.
-* **Real-time Anomaly Detection:** Triggers an alert if the RMS energy exceeds a baseline threshold (currently set manually).
+* **Machine Learning Anomaly Detection:** An unsupervised ML model (Isolation Forest) dynamically learns the acoustic baseline of the machinery (via a "Record Baseline" button) and automatically flags abnormal vibrations and signature deviations in real-time.
 
 ---
 

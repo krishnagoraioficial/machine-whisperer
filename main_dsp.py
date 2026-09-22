@@ -98,6 +98,7 @@ def start_calibration():
     is_calibrating = True
     calibration_frames = []
     print("Starting baseline calibration...")
+    ui.set_calibration_mode(True)
 
 ui.calibrate_btn.clicked.connect(start_calibration)
 
@@ -173,6 +174,7 @@ def update_dashboard():
             baseline_spectrum = np.maximum(baseline_spectrum, 1e-6) # prevent div/0
             is_calibrating = False
             print("Calibration complete.")
+            ui.set_calibration_mode(False)
     elif baseline_spectrum is not None:
         energy_ratio = fft_magnitude / baseline_spectrum
         
