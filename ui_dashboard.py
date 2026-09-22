@@ -2,8 +2,8 @@
 # FILE: ui_dashboard.py
 # AUTHOR: Krishna Gorai (Roll No: 25f1100001)
 # PURPOSE: Frontend layout for MachineWhisperer. Displays DSP analytics 
-#          and sets up UI placeholders for Phase 2 ML anomaly classification.
-# # ---------------------------------------------------------
+#          using PyQtGraph for real-time visualization without lag.
+# ---------------------------------------------------------
 import pyqtgraph as pg
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                              QSpinBox, QPushButton, QComboBox, QFrame, QGridLayout)
@@ -13,6 +13,7 @@ from PyQt6.QtCore import Qt
 class DashboardUI:
     def __init__(self):
         # Configure PyQtGraph global colors BEFORE creating the window
+        # I chose dark mode colors because it looks much better for data dashboards
         pg.setConfigOptions(background='#111A22', foreground='#81909D')
 
         self.main_window = QWidget()
@@ -74,14 +75,9 @@ class DashboardUI:
         machine_layout = QVBoxLayout()
         machine_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
         
-        self.machine_selector = QComboBox()
-        self.machine_selector.addItems(["M-01 • CNC Motor", "M-02 • Hydraulic Pump", "M-03 • Heavy Compressor"])
-        self.machine_selector.setFixedWidth(200)
-        
         status_label = QLabel("● LIVE  |  Scan Active")
         status_label.setStyleSheet("color: #35D07F; font-weight: bold;")
         
-        machine_layout.addWidget(self.machine_selector)
         machine_layout.addWidget(status_label, alignment=Qt.AlignmentFlag.AlignRight)
 
         header_layout.addLayout(info_layout)
@@ -139,7 +135,7 @@ class DashboardUI:
         self.anomaly_status = QLabel("Awaiting Calibration (Threshold Method)")
         self.anomaly_status.setStyleSheet("color: #F5B942; font-size: 14px; font-weight: bold;")
         
-        self.calibrate_btn = QPushButton("CALIBRATE BASELINE (5s)")
+        self.calibrate_btn = QPushButton("CALIBRATE BASELINE (10s)")
         self.calibrate_btn.setStyleSheet("background-color: #F5B942; color: #0B1117;")
         
         anomaly_layout.addWidget(self.anomaly_title)
@@ -173,6 +169,8 @@ class DashboardUI:
 
         # ---------------------------------------------------------
         # 4. DATA VISUALIZATION (PYQTGRAPH)
+        # We use PyQtGraph here instead of Matplotlib because Matplotlib 
+        # is too slow for real-time 50ms refresh rates.
         # ---------------------------------------------------------
         graph_card = QFrame()
         graph_card.setProperty("class", "card")
@@ -219,12 +217,13 @@ class DashboardUI:
             self.anomaly_status.setText("Building Spectral Baseline...")
             self.anomaly_status.setStyleSheet("color: #F5B942; font-size: 14px; font-weight: bold;")
         else:
-            self.calibrate_btn.setText("CALIBRATE BASELINE (5s)")
+            self.calibrate_btn.setText("CALIBRATE BASELINE (10s)")
             self.calibrate_btn.setEnabled(True)
             self.calibrate_btn.setStyleSheet("background-color: #F5B942; color: #0B1117;")
 
     def update_kpis(self, rms_val, dom_freq, is_anomaly, health_score, status_text, sys_status, sys_desc):
         """Updates the text on the top KPI cards based on backend math."""
+        # Format the floats to look clean
         self.lbl_rms_val.setText(f"{rms_val:.4f} g")
         self.lbl_freq_val.setText(f"{dom_freq:.0f} Hz")
         

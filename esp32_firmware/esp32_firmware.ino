@@ -5,11 +5,11 @@
 // ==========================================
 // 1. CONFIG & SETUP
 // ==========================================
-// Replace with your Wi-Fi credentials
+// Replace with your Wi-Fi credentials (generic placeholders)
 const char *ssid = "WIFI_SSID";
 const char *password = "WIFI_PASSWORD";
 
-// Replace with the IP address of the computer running main_dsp.py
+// Replace with the IP address of the laptop running main_dsp.py
 const char *host = "LOCAL_IP_ADDRESS";
 const uint16_t port = 5000;
 
@@ -27,6 +27,7 @@ WiFiClient client;
 // ==========================================
 // 2. I2S INITIALIZATION
 // ==========================================
+// This sets up the INMP441 microphone to read raw audio data
 void setupI2S() {
   i2s_config_t i2s_config = {
       .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
@@ -80,7 +81,7 @@ void setup() {
 }
 
 void loop() {
-  // Reconnect to Python server if disconnected
+  // If we lose connection, try to reconnect to the Python server
   if (!client.connected()) {
     Serial.println("Connecting to TCP server...");
     if (client.connect(host, port)) {
@@ -95,12 +96,12 @@ void loop() {
   int16_t i2s_read_buff[I2S_BUFFER_SIZE];
   size_t bytes_read = 0;
 
-  // Read data from the microphone
+  // Read audio data from the INMP441 microphone via I2S
   i2s_read(I2S_PORT, (void *)i2s_read_buff, sizeof(i2s_read_buff), &bytes_read,
            portMAX_DELAY);
 
   if (bytes_read > 0) {
-    // send audio data over wifi
+    // Blast the raw audio data over Wi-Fi to the laptop as fast as possible
     client.write((const uint8_t *)i2s_read_buff, bytes_read);
   }
 }

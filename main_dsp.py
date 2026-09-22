@@ -1,4 +1,7 @@
-# main file for audio processing and dashboard
+# main_dsp.py
+# This is the main python script that runs on the laptop to process the incoming audio stream.
+# It sets up a TCP server to listen to the ESP32, runs the digital signal processing (DSP) pipeline,
+# and updates the PyQtGraph dashboard in real-time.
 import sys
 import numpy as np
 import scipy.signal as signal
@@ -22,9 +25,10 @@ rms_history = np.zeros(WATERFALL_FRAMES)
 is_calibrating = False
 calibration_frames = []
 baseline_spectrum = None
-CALIBRATION_MAX_FRAMES = 100 # ~5.0 seconds at 50ms refresh
+CALIBRATION_MAX_FRAMES = 200 # ~10.0 seconds at 50ms refresh
 
-# function to create the bandpass filter
+# Helper function to generate a Butterworth bandpass filter
+# Using Butterworth because it gives a flat frequency response in the passband (good for our audio)
 def create_digital_filter(low_hz, high_hz, rate, order):
     nyquist_limit = 0.5 * rate
     normalized_low = low_hz / nyquist_limit
@@ -34,7 +38,7 @@ def create_digital_filter(low_hz, high_hz, rate, order):
 # initial filter setup
 filter_b, filter_a = create_digital_filter(80.0, 3000.0, AUDIO_SAMPLE_RATE, FILTER_STEEPNESS)
 
-# thread to receive audio from esp32
+# This thread runs constantly in the background to grab audio bytes from the ESP32 over Wi-Fi
 def tcp_server_thread():
     global audio_buffer
     HOST = '0.0.0.0'
@@ -42,9 +46,9 @@ def tcp_server_thread():
     
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server_socket.bind((HOST, PORT))
+    server_socket.bind((HOST, PORT)) # 0.0.0.0 means we listen on all available network interfaces (generic)
     server_socket.listen(1)
-    print(f"listening on {HOST}:{PORT}. waiting for esp32...")
+    print(f"Server is listening on {HOST}:{PORT}. Waiting for ESP32 to connect...")
     
     while True:
         conn, addr = server_socket.accept()
@@ -67,6 +71,7 @@ def tcp_server_thread():
                     del accumulated_data[:expected_bytes]
                     
                     raw_samples = np.frombuffer(chunk, dtype=np.int16)
+                    # Convert raw 16-bit PCM (from -32768 to 32767) into float between -1.0 and 1.0
                     float_samples = raw_samples.astype(np.float32) / 32768.0
                     
                     if np.random.random() < 0.05:
@@ -90,6 +95,12 @@ def update_filter_preset():
     
     if new_low >= new_high: return 
     filter_b, filter_a = create_digital_filter(new_low, new_high, AUDIO_SAMPLE_RATE, FILTER_STEEPNESS)
+    
+    # Provide visual feedback that the filter was successfully applied
+    ui.apply_btn.setText("APPLIED ✓")
+    ui.apply_btn.setStyleSheet("background-color: #35D07F; color: #0B1117;")
+    pg.QtCore.QTimer.singleShot(1500, lambda: ui.apply_btn.setText("APPLY FILTER"))
+    pg.QtCore.QTimer.singleShot(1500, lambda: ui.apply_btn.setStyleSheet(""))
 
 ui.apply_btn.clicked.connect(update_filter_preset)
 
@@ -102,7 +113,7 @@ def start_calibration():
 
 ui.calibrate_btn.clicked.connect(start_calibration)
 
-# main loop to process audio and update UI
+# This is the main loop that gets called every 50ms by the QTimer to refresh the UI and run the DSP math
 def update_dashboard():
     global spectrogram_data, rms_history
     
@@ -115,7 +126,7 @@ def update_dashboard():
     raw_y = max(raw_peak * 1.2, 0.05) # Increased minimum range to hide noise
     ui.raw_waveform_plot.setYRange(-raw_y, raw_y)
 
-    # filter the audio
+    # Apply the bandpass filter to isolate machine noise and drop background AC hum
     filtered_audio = signal.lfilter(filter_b, filter_a, local_audio)
     ui.waveform_curve.setData(filtered_audio)
 
@@ -124,9 +135,12 @@ def update_dashboard():
     filtered_y = max(peak_amp * 1.2, 0.05) # Increased minimum range to hide noise
     ui.waveform_plot.setYRange(-filtered_y, filtered_y)
 
-    # calculate fft for spectrogram
+    # Calculate FFT to see the frequency spectrum
+    # We apply a Hanning window first to reduce spectral leakage at the edges of the chunk
     windowed_audio = filtered_audio * np.hanning(len(filtered_audio))
     fft_magnitude = np.abs(np.fft.rfft(windowed_audio))[:-1]
+    
+    # Convert amplitude to Decibels (dB) for the waterfall plot so we can actually see quiet sounds
     fft_db = 20 * np.log10(fft_magnitude + 1e-6)
     
     spectrogram_data = np.roll(spectrogram_data, -1, axis=0)
@@ -138,7 +152,8 @@ def update_dashboard():
     upper_level = max(peak_fft, 10.0)
     ui.image_item.setLevels((upper_level - 60, upper_level))
         
-    # calculate rms power
+    # Calculate Root Mean Square (RMS) Energy using the formula: sqrt(mean(x^2))
+    # This acts as our baseline "vibration severity" indicator
     current_rms = np.sqrt(np.mean(filtered_audio**2))
     rms_history = np.roll(rms_history, -1)
     rms_history[-1] = current_rms
@@ -150,7 +165,8 @@ def update_dashboard():
     else:
         ui.rms_plot.setYRange(0, 0.2)
 
-    # get the dominant frequency
+    # Find the dominant frequency by checking which FFT bin has the max energy
+    # Bin index * (Sample_Rate / Chunk_Size) gives us the actual Hertz value
     dom_freq_idx = np.argmax(fft_magnitude)
     dominant_frequency_hz = dom_freq_idx * (AUDIO_SAMPLE_RATE / CHUNK_SIZE)
     
@@ -179,6 +195,7 @@ def update_dashboard():
         energy_ratio = fft_magnitude / baseline_spectrum
         
         # Analyze specific bands based on filters, e.g. 80Hz to 3000Hz
+        # (This is where the actual machine mechanical noise usually sits)
         start_bin = int(80 / (AUDIO_SAMPLE_RATE / CHUNK_SIZE))
         end_bin = int(3000 / (AUDIO_SAMPLE_RATE / CHUNK_SIZE))
         
