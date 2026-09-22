@@ -11,7 +11,6 @@ Machine Whisperer is an advanced, real-time acoustic sensing platform designed f
 
 In its current state, an ESP32 microcontroller with an INMP441 I2S microphone captures the audio at the edge. This raw PCM data is streamed wirelessly over Wi-Fi (TCP) to a Python dashboard that runs a live DSP pipeline and statistical anomaly detection.
 
-![Dashboard Preview](./assets/video-demo.gif)
 
 ---
 
@@ -94,6 +93,9 @@ If you are presenting this project and do not have the ESP32 hardware plugged in
 2. In a new terminal, start the mock client: `python3 mock_esp32_client.py`
 3. Click **"CALIBRATE BASELINE (10s)"** in the dashboard.
 4. After 15 seconds, the mock script will automatically inject the anomaly. Watch the dashboard instantly flag the energy spike and turn red!
+
+![Demo Simulation](./assets/video-demo.gif)
+
 
 ---
 
