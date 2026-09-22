@@ -96,6 +96,8 @@ If you are presenting this project and do not have the ESP32 hardware plugged in
 
 ![Demo Simulation](./assets/video-demo.gif)
 
+[**Watch the full Video Demonstration on YouTube**](https://youtu.be/FPmqlSMWRas)
+
 
 ---
 
